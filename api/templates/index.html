@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Laptop Compare</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>.hidden{display:none;}</style>
+</head>
+<body class="bg-gray-100 p-4">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
+    <h1 class="text-2xl font-bold mb-4 text-center">Laptop Compare</h1>
+    <!-- Search -->
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <input id="model" placeholder="Enter laptop model" class="flex-1 border p-2 rounded" />
+      <button onclick="search()" class="bg-blue-600 text-white px-4 py-2 rounded">Search</button>
+    </div>
+    <!-- Filter -->
+    <button id="filterBtn" onclick="toggleFilters()" class="hidden mb-4 bg-yellow-500 text-white px-4 py-2 rounded">Filters</button>
+    <div id="filters" class="hidden mb-4 border p-3 rounded max-h-48 overflow-auto"></div>
+    <!-- Table -->
+    <div class="overflow-x-auto">
+      <table id="table" class="w-full table-auto border-collapse hidden">
+      </table>
+    </div>
+    <!-- Export -->
+    <button id="exportBtn" onclick="exportExcel()" class="hidden mt-4 bg-gray-800 text-white px-4 py-2 rounded">Export to Excel</button>
+  </div>
+
+  <script>
+    let data=[];
+    const defaultCols=['Site','link','Model','Price','Processor','Graphics Card','Screen Resolution'];
+    let allCols=[];
+    let visibleCols=[];
+
+    function search(){
+      const q=model.value.trim();
+      if(!q) return alert('Enter model');
+      resetUI();
+      fetch(`/search?q=${encodeURIComponent(q)}`)
+        .then(r=>r.json())
+        .then(js=>{
+          data=js;
+          if(!data.length) return;
+          allCols=Object.keys(data[0]);
+          visibleCols=allCols.filter(c=>defaultCols.includes(c));
+          renderTable();
+          filterBtn.classList.remove('hidden');
+          exportBtn.classList.remove('hidden');
+        }).catch(()=>alert('Fetch error'));
+    }
+
+    function renderTable(){
+      const cols=visibleCols;
+      let html='<tr>' + cols.map(c=>`<th class="border px-2 py-1">${c}</th>`).join('') + '</tr>';
+      data.forEach(r=>{
+        html+='<tr>'+cols.map(c=>{
+          let v=r[c]||'';
+          if(c==='link') v=`<a href=\"${r.link}\" target=\"_blank\">View</a>`;
+          return `<td class=\"border px-2 py-1\">${v}</td>`;
+        }).join('')+'</tr>';
+      });
+      table.innerHTML=html;
+      table.classList.remove('hidden');
+      setupFilters();
+    }
+    function resetUI(){
+      data=[];allCols=[];visibleCols=[];
+      table.innerHTML='';table.classList.add('hidden');
+      filterBtn.classList.add('hidden');filters.classList.add('hidden');filters.innerHTML='';
+      exportBtn.classList.add('hidden');
+    }
+    function toggleFilters(){filters.classList.toggle('hidden');}
+    function setupFilters(){
+      filters.innerHTML=allCols.map(c=>{
+        const chk=visibleCols.includes(c)?'checked':'';
+        return `<label class=\"block mb-1\">`+
+               `<input type=\"checkbox\" value=\"${c}\" ${chk}`+
+               ` onchange=\"onFilterChange(event)\"> ${c}`+
+               `</label>`;
+      }).join('');
+    }
+    function onFilterChange(e){
+      const c=e.target.value;
+      if(e.target.checked) visibleCols.push(c);
+      else visibleCols=visibleCols.filter(x=>x!==c);
+      renderTable();
+    }
+    function exportExcel(){window.location='/export';}
+  </script>
+</body>
+</html>
